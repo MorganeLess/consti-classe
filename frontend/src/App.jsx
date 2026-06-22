@@ -48,7 +48,8 @@ function App() {
     files.forEach((file) => formData.append('files', file));
 
     try {
-      const response = await fetch('http://${API_URL}/api/import', { method: 'POST', body: formData });
+      // CORRECTION : Remplacement des guillemets simples par des backticks
+      const response = await fetch(`${API_URL}/api/import`, { method: 'POST', body: formData });
       const data = await response.json();
       if (response.ok) {
         setMessage(`${data.message} ${data.donnees ? data.donnees.length : 0} élèves chargés.`);
@@ -80,7 +81,8 @@ function App() {
     }
 
     try {
-      const response = await fetch('http://${API_URL}/api/generer-classes', {
+      // CORRECTION : Remplacement des guillemets simples par des backticks
+      const response = await fetch(`${API_URL}/api/generer-classes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,7 +108,8 @@ function App() {
 
   const handleExportGlobal = async () => {
     try {
-      const response = await fetch('http://${API_URL}/api/export', {
+      // CORRECTION : Remplacement des guillemets simples par des backticks
+      const response = await fetch(`${API_URL}/api/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ classes: classesGenerees })
@@ -119,7 +122,8 @@ function App() {
 
   const handleExportClasseUnique = async (nomClasse, listeElevesClasse) => {
     try {
-      const response = await fetch('http://${API_URL}/api/export-classe-specifique', {
+      // CORRECTION : Remplacement des guillemets simples par des backticks
+      const response = await fetch(`${API_URL}/api/export-classe-specifique`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nomClasse, listeElevesClasse })
@@ -367,7 +371,7 @@ function App() {
                           <option value="Très Bon">★ Très bon</option>
                           <option value="Bon">● Bon</option>
                           <option value="Moyen">▲ Moyen</option>
-                          <option value="En difficulté">■ En difficulté</option>
+                          <option value="En difficulty">■ En difficulté</option>
                         </select>
                       </td>
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>
