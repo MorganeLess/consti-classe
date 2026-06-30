@@ -55,7 +55,7 @@ function App() {
         setMessage(`${data.message} ${data.donnees ? data.donnees.length : 0} élèves chargés.`);
         setFiles([]);
         setEleves((data.donnees || []).map(e => ({
-          ...e, niveau: "Moyen", comportement: "Calme", ULIS: false, bloquerAvec: [], separerDe: []
+          ...e, niveau: "Moyen", comportement: "Calme", ULIS: false, voile: false, bloquerAvec: [], separerDe: []
         })));
         setClassesGenerees({});
       } else { setMessage("Erreur : " + data.error); }
@@ -335,19 +335,19 @@ function App() {
               Étape 2 — Critères et affinités par élève
             </h3>
             <p style={{ margin: '0 0 16px 0', fontSize: '0.85em', color: C.muted }}>
-              {eleves.length} élève(s) chargé(s). Ajustez le niveau, le comportement, les liaisons ULIS, et les liens à respecter ou éviter.
+              {eleves.length} élève(s) chargé(s). Ajustez le niveau, le comportement, les liaisons ULIS, l'option voile (regroupées dans la même classe), et les liens à respecter ou éviter.
             </p>
 
             <div className="cc-table-wrap" style={{
               maxHeight: '320px', border: `1px solid ${C.line}`, borderRadius: '6px',
               marginBottom: '24px',
             }}>
-              <table className="cc-table" style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', fontSize: '0.85em' }}>
+              <table className="cc-table" style={{ width: '100%', minWidth: '860px', borderCollapse: 'collapse', fontSize: '0.85em' }}>
                 <thead style={{ backgroundColor: C.manila, position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
-                    {['Élève', 'Options', 'Niveau scolaire', 'Comportement', 'ULIS', 'Bloquer avec', 'Séparer de'].map((h, i) => (
+                    {['Élève', 'Options', 'Niveau scolaire', 'Comportement', 'ULIS', 'Voile', 'Bloquer avec', 'Séparer de'].map((h, i) => (
                       <th key={h} style={{
-                        padding: '8px 10px', textAlign: i === 4 ? 'center' : 'left',
+                        padding: '8px 10px', textAlign: (i === 4 || i === 5) ? 'center' : 'left',
                         fontFamily: fontDisplay, fontWeight: 600, fontSize: '0.8em',
                         color: C.ink, borderBottom: `1px solid ${C.line}`,
                       }}>{h}</th>
@@ -390,6 +390,14 @@ function App() {
                           type="checkbox" checked={e.ULIS}
                           onChange={(chk) => modifierCritereEleve(e.id, 'ULIS', chk.target.checked)}
                           style={{ width: '16px', height: '16px', accentColor: C.red, cursor: 'pointer' }}
+                        />
+                      </td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                        <input
+                          type="checkbox" checked={e.voile || false}
+                          onChange={(chk) => modifierCritereEleve(e.id, 'voile', chk.target.checked)}
+                          style={{ width: '16px', height: '16px', accentColor: C.postit, cursor: 'pointer' }}
+                          title="Élèves voile : regroupés dans la même classe"
                         />
                       </td>
                       <td style={{ padding: '8px 10px' }}>
@@ -476,6 +484,7 @@ function App() {
                 const garcons = liste.filter(e => e.sexe === 'M').length;
                 const nbUlis = liste.filter(e => e.ULIS === true || e.ULIS === "true").length;
                 const nbPerturbateurs = liste.filter(e => e.comportement === 'Perturbateur').length;
+                const nbVoile = liste.filter(e => e.voile).length;
                 const isOver = dragOverClasse === nomClasse;
 
                 return (
@@ -529,6 +538,9 @@ function App() {
                       <span style={{ color: C.blue, fontWeight: 700 }}>G:{garcons}</span>
                       {nbPerturbateurs > 0 && (
                         <span style={{ color: C.postit, fontWeight: 700 }}>⚡{nbPerturbateurs}</span>
+                      )}
+                      {nbVoile > 0 && (
+                        <span style={{ color: C.muted, fontWeight: 700 }}>🧕{nbVoile}</span>
                       )}
                       {nbUlis > 0 && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: C.red, fontWeight: 700, marginLeft: 'auto' }}>

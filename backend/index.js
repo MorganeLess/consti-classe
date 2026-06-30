@@ -83,6 +83,7 @@ app.post('/api/import', upload.array('files'), (req, res) => {
                     niveau: "Moyen",
                     comportement: "Calme",
                     ULIS: false,
+                    voile: false,
                     bloquerAvec: [],
                     separerDe: []
                 });
@@ -140,7 +141,8 @@ app.post('/api/generer-classes', (req, res) => {
             separerDe: e.separerDe || [],
             niveau: e.niveau || "Moyen",
             comportement: e.comportement || "Calme",
-            ULIS: e.ULIS || false
+            ULIS: e.ULIS || false,
+            voile: e.voile || false
         }));
 
         // Taille cible moyenne par classe, utilisée pour savoir à partir de quand
@@ -156,8 +158,6 @@ app.post('/api/generer-classes', (req, res) => {
             const optionsChaine = eleve.options.join(' ').toLowerCase();
             const estItalien = optionsChaine.includes('ital');
             const estEspagnol = optionsChaine.includes('esp');
-            // "Voile" est un critère affiché/pris en compte mais ne déclenche pas de classes dédiées
-            const estVoile = optionsChaine.includes('voile');
 
             Object.keys(classesActuelles).forEach((nomClasse) => {
                 const classe = classesActuelles[nomClasse];
@@ -216,6 +216,17 @@ app.post('/api/generer-classes', (req, res) => {
                     scoreIncompatibilite += nbPerturbateurs * 600;
                 }
 
+                // --- VOILE : tous les élèves concernés doivent finir dans la même classe ---
+                if (eleve.voile) {
+                    const contientDejaUnVoile = classe.some(e => e.voile);
+                    const uneAutreClasseAUnVoile = Object.values(classesActuelles).some(c => c !== classe && c.some(e => e.voile));
+                    if (uneAutreClasseAUnVoile && !contientDejaUnVoile) {
+                        scoreIncompatibilite += 100000; // empêche de scinder le groupe voile sur 2 classes
+                    } else if (contientDejaUnVoile) {
+                        scoreIncompatibilite -= 5000; // regroupe fortement les élèves voile ensemble
+                    }
+                }
+
                 // --- RETOUR DES CONTRAINTES SOCIALES (AMIS / BAVARDS) ---
                 const contientUnBavard = classe.some(e => eleve.separerDe.includes(e.id) || e.separerDe.includes(eleve.id));
                 if (contientUnBavard) scoreIncompatibilite += 4000; // Forte pénalité pour séparer les bavards/conflits
@@ -235,6 +246,10 @@ app.post('/api/generer-classes', (req, res) => {
         const ordreNiveaux = { "En difficulté": 4, "Moyen": 3, "Bon": 2, "Très Bon": 1 };
         elevesRestants.sort((a, b) => {
             if (a.ULIS !== b.ULIS) return b.ULIS - a.ULIS;
+
+            // Les élèves "voile" sont traités en priorité pour que le groupe
+            // se constitue dès le premier placé, et que les suivants le rejoignent.
+            if (a.voile !== b.voile) return (b.voile ? 1 : 0) - (a.voile ? 1 : 0);
             
             // Priorité de placement à ceux qui ont des blocages d'amis ou de langues
             const contrainteA = a.bloquerAvec.length > 0 || a.separerDe.length > 0;
@@ -276,7 +291,7 @@ app.post('/api/export', (req, res) => {
         const workbook = XLSX.utils.book_new();
         Object.keys(classes).forEach((nomClasse) => {
             const worksheet = XLSX.utils.json_to_sheet(classes[nomClasse].map(e => ({
-                "Nom Complet": e.nomComplet, "Sexe": e.sexe, "Options": e.options.join(', '), "Niveau": e.niveau, "Comportement": e.comportement || "Calme", "ULIS": e.ULIS ? "Oui" : "Non", "Régime": e.regime
+                "Nom Complet": e.nomComplet, "Sexe": e.sexe, "Options": e.options.join(', '), "Niveau": e.niveau, "Comportement": e.comportement || "Calme", "ULIS": e.ULIS ? "Oui" : "Non", "Voile": e.voile ? "Oui" : "Non", "Régime": e.regime
             })));
             XLSX.utils.book_append_sheet(workbook, worksheet, nomClasse.substring(0, 30));
         });
