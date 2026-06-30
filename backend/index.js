@@ -81,6 +81,7 @@ app.post('/api/import', upload.array('files'), (req, res) => {
                     options: options,
                     regime: indexRegime !== -1 && ligne[indexRegime] ? String(ligne[indexRegime]).trim() : "EXTERNE",
                     niveau: "Moyen",
+                    comportement: "Calme",
                     ULIS: false,
                     bloquerAvec: [],
                     separerDe: []
@@ -138,6 +139,7 @@ app.post('/api/generer-classes', (req, res) => {
             bloquerAvec: e.bloquerAvec || [],
             separerDe: e.separerDe || [],
             niveau: e.niveau || "Moyen",
+            comportement: e.comportement || "Calme",
             ULIS: e.ULIS || false
         }));
 
@@ -148,6 +150,8 @@ app.post('/api/generer-classes', (req, res) => {
             const optionsChaine = eleve.options.join(' ').toLowerCase();
             const estItalien = optionsChaine.includes('ital');
             const estEspagnol = optionsChaine.includes('esp');
+            // "Voile" est un critère affiché/pris en compte mais ne déclenche pas de classes dédiées
+            const estVoile = optionsChaine.includes('voile');
 
             Object.keys(classesActuelles).forEach((nomClasse) => {
                 const classe = classesActuelles[nomClasse];
@@ -180,6 +184,14 @@ app.post('/api/generer-classes', (req, res) => {
                 const nbNiveau = classe.filter(e => e.niveau === eleve.niveau).length;
                 scoreIncompatibilite += nbNiveau * 3;
 
+                // --- COMPORTEMENT : étaler les perturbateurs entre les classes ---
+                if (eleve.comportement === 'Perturbateur') {
+                    const nbPerturbateurs = classe.filter(e => e.comportement === 'Perturbateur').length;
+                    // Pénalité croissante : plus une classe a déjà de perturbateurs,
+                    // moins elle est intéressante pour en accueillir un de plus.
+                    scoreIncompatibilite += nbPerturbateurs * 600;
+                }
+
                 // --- RETOUR DES CONTRAINTES SOCIALES (AMIS / BAVARDS) ---
                 const contientUnBavard = classe.some(e => eleve.separerDe.includes(e.id) || e.separerDe.includes(eleve.id));
                 if (contientUnBavard) scoreIncompatibilite += 4000; // Forte pénalité pour séparer les bavards/conflits
@@ -204,6 +216,12 @@ app.post('/api/generer-classes', (req, res) => {
             const contrainteA = a.bloquerAvec.length > 0 || a.separerDe.length > 0;
             const contrainteB = b.bloquerAvec.length > 0 || b.separerDe.length > 0;
             if (contrainteA !== contrainteB) return contrainteB - contrainteA;
+
+            // Les profils perturbateurs sont placés tôt pour que la pénalité
+            // de concentration agisse efficacement sur les suivants
+            if (a.comportement !== b.comportement) {
+                return (b.comportement === 'Perturbateur' ? 1 : 0) - (a.comportement === 'Perturbateur' ? 1 : 0);
+            }
 
             const optA = a.options.join(' ').toLowerCase().includes('ital') || a.options.join(' ').toLowerCase().includes('esp');
             const optB = b.options.join(' ').toLowerCase().includes('ital') || b.options.join(' ').toLowerCase().includes('esp');
@@ -234,7 +252,7 @@ app.post('/api/export', (req, res) => {
         const workbook = XLSX.utils.book_new();
         Object.keys(classes).forEach((nomClasse) => {
             const worksheet = XLSX.utils.json_to_sheet(classes[nomClasse].map(e => ({
-                "Nom Complet": e.nomComplet, "Sexe": e.sexe, "Options": e.options.join(', '), "Niveau": e.niveau, "ULIS": e.ULIS ? "Oui" : "Non", "Régime": e.regime
+                "Nom Complet": e.nomComplet, "Sexe": e.sexe, "Options": e.options.join(', '), "Niveau": e.niveau, "Comportement": e.comportement || "Calme", "ULIS": e.ULIS ? "Oui" : "Non", "Régime": e.regime
             })));
             XLSX.utils.book_append_sheet(workbook, worksheet, nomClasse.substring(0, 30));
         });

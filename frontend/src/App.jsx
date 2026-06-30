@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Flag, Music, Scale, Upload, Download, FileDown, Accessibility, GripVertical } from 'lucide-react';
 
-const API_URL = "https://consti-classe-backend.onrender.com"; 
 // ---------------------------------------------------------------------------
 // Design tokens — "classeur de salle des profs"
 // ---------------------------------------------------------------------------
@@ -48,14 +47,13 @@ function App() {
     files.forEach((file) => formData.append('files', file));
 
     try {
-      // CORRECTION : Remplacement des guillemets simples par des backticks
-      const response = await fetch(`${API_URL}/api/import`, { method: 'POST', body: formData });
+      const response = await fetch('http://localhost:5050/api/import', { method: 'POST', body: formData });
       const data = await response.json();
       if (response.ok) {
         setMessage(`${data.message} ${data.donnees ? data.donnees.length : 0} élèves chargés.`);
         setFiles([]);
         setEleves((data.donnees || []).map(e => ({
-          ...e, niveau: "Moyen", ULIS: false, bloquerAvec: [], separerDe: []
+          ...e, niveau: "Moyen", comportement: "Calme", ULIS: false, bloquerAvec: [], separerDe: []
         })));
         setClassesGenerees({});
       } else { setMessage("Erreur : " + data.error); }
@@ -81,8 +79,7 @@ function App() {
     }
 
     try {
-      // CORRECTION : Remplacement des guillemets simples par des backticks
-      const response = await fetch(`${API_URL}/api/generer-classes`, {
+      const response = await fetch('http://localhost:5050/api/generer-classes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,8 +105,7 @@ function App() {
 
   const handleExportGlobal = async () => {
     try {
-      // CORRECTION : Remplacement des guillemets simples par des backticks
-      const response = await fetch(`${API_URL}/api/export`, {
+      const response = await fetch('http://localhost:5050/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ classes: classesGenerees })
@@ -122,8 +118,7 @@ function App() {
 
   const handleExportClasseUnique = async (nomClasse, listeElevesClasse) => {
     try {
-      // CORRECTION : Remplacement des guillemets simples par des backticks
-      const response = await fetch(`${API_URL}/api/export-classe-specifique`, {
+      const response = await fetch('http://localhost:5050/api/export-classe-specifique', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nomClasse, listeElevesClasse })
@@ -338,19 +333,19 @@ function App() {
               Étape 2 — Critères et affinités par élève
             </h3>
             <p style={{ margin: '0 0 16px 0', fontSize: '0.85em', color: C.muted }}>
-              {eleves.length} élève(s) chargé(s). Ajustez le niveau, les liaisons ULIS, et les liens à respecter ou éviter.
+              {eleves.length} élève(s) chargé(s). Ajustez le niveau, le comportement, les liaisons ULIS, et les liens à respecter ou éviter.
             </p>
 
             <div className="cc-table-wrap" style={{
               maxHeight: '320px', border: `1px solid ${C.line}`, borderRadius: '6px',
               marginBottom: '24px',
             }}>
-              <table className="cc-table" style={{ width: '100%', minWidth: '680px', borderCollapse: 'collapse', fontSize: '0.85em' }}>
+              <table className="cc-table" style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', fontSize: '0.85em' }}>
                 <thead style={{ backgroundColor: C.manila, position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
-                    {['Élève', 'Options', 'Niveau scolaire', 'ULIS', 'Bloquer avec', 'Séparer de'].map((h, i) => (
+                    {['Élève', 'Options', 'Niveau scolaire', 'Comportement', 'ULIS', 'Bloquer avec', 'Séparer de'].map((h, i) => (
                       <th key={h} style={{
-                        padding: '8px 10px', textAlign: i === 3 ? 'center' : 'left',
+                        padding: '8px 10px', textAlign: i === 4 ? 'center' : 'left',
                         fontFamily: fontDisplay, fontWeight: 600, fontSize: '0.8em',
                         color: C.ink, borderBottom: `1px solid ${C.line}`,
                       }}>{h}</th>
@@ -371,7 +366,21 @@ function App() {
                           <option value="Très Bon">★ Très bon</option>
                           <option value="Bon">● Bon</option>
                           <option value="Moyen">▲ Moyen</option>
-                          <option value="En difficulty">■ En difficulté</option>
+                          <option value="En difficulté">■ En difficulté</option>
+                        </select>
+                      </td>
+                      <td style={{ padding: '8px 10px' }}>
+                        <select
+                          value={e.comportement || 'Calme'}
+                          onChange={(opt) => modifierCritereEleve(e.id, 'comportement', opt.target.value)}
+                          style={{
+                            ...selectStyle,
+                            color: e.comportement === 'Perturbateur' ? C.red : C.ink,
+                            fontWeight: e.comportement === 'Perturbateur' ? 700 : 400,
+                          }}
+                        >
+                          <option value="Calme">Calme</option>
+                          <option value="Perturbateur">Perturbateur</option>
                         </select>
                       </td>
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>
@@ -464,6 +473,7 @@ function App() {
                 const filles = liste.filter(e => e.sexe === 'F').length;
                 const garcons = liste.filter(e => e.sexe === 'M').length;
                 const nbUlis = liste.filter(e => e.ULIS === true || e.ULIS === "true").length;
+                const nbPerturbateurs = liste.filter(e => e.comportement === 'Perturbateur').length;
                 const isOver = dragOverClasse === nomClasse;
 
                 return (
@@ -515,6 +525,9 @@ function App() {
                     }}>
                       <span style={{ color: C.pink, fontWeight: 700 }}>F:{filles}</span>
                       <span style={{ color: C.blue, fontWeight: 700 }}>G:{garcons}</span>
+                      {nbPerturbateurs > 0 && (
+                        <span style={{ color: C.postit, fontWeight: 700 }}>⚡{nbPerturbateurs}</span>
+                      )}
                       {nbUlis > 0 && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: C.red, fontWeight: 700, marginLeft: 'auto' }}>
                           <Accessibility size={13} /> {nbUlis}
@@ -541,6 +554,9 @@ function App() {
                           <GripVertical size={13} color={C.muted} style={{ marginTop: '2px', flexShrink: 0, opacity: 0.5 }} />
                           <div>
                             <strong style={{ fontFamily: fontBody }}>{eleve.nomComplet}</strong>
+                            {eleve.comportement === 'Perturbateur' && (
+                              <span style={{ color: C.postit, marginLeft: '6px', fontWeight: 700 }} title="Perturbateur">⚡</span>
+                            )}
                             {eleve.options?.length > 0 && (
                               <div style={{ fontSize: '0.74em', color: C.blue, marginTop: '2px', fontWeight: 600 }}>
                                 {eleve.options.join(', ')}
