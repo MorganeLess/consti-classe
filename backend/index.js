@@ -143,6 +143,12 @@ app.post('/api/generer-classes', (req, res) => {
             ULIS: e.ULIS || false
         }));
 
+        // Taille cible moyenne par classe, utilisée pour savoir à partir de quand
+        // une classe "pure" (italien/espagnol) peut être complétée par des élèves
+        // neutres si elle manque d'effectif (cas où trop peu d'élèves ont la LV2 demandée).
+        const nombreClasses = Object.keys(classes).length;
+        const tailleCibleMoyenne = nombreClasses > 0 ? elevesRestants.length / nombreClasses : 0;
+
         const obtenirMeilleureClasse = (eleve, classesActuelles) => {
             let meilleureClasse = Object.keys(classesActuelles)[0];
             let scoreMinimum = Infinity;
@@ -157,16 +163,34 @@ app.post('/api/generer-classes', (req, res) => {
                 const classe = classesActuelles[nomClasse];
                 const typeDeLaClasse = typesParClasse[nomClasse];
                 
-                let scoreIncompatibilite = classe.length * 10;
+                // Score de base : pénalise les classes déjà "en avance" sur la taille cible
+                // moyenne, et au contraire favorise celles qui sont en retard (déficit positif).
+                // Cela évite qu'une classe pure sous-remplie au démarrage (ex: 1 seul italien
+                // traité en premier) ne soit jamais rattrapée ensuite par les classes mixtes
+                // qui se remplissent plus vite.
+                const ecartTailleCible = classe.length - tailleCibleMoyenne;
+                let scoreIncompatibilite = ecartTailleCible * 10;
 
                 // --- STRATÉGIE DES LANGUES ---
                 if (typeDeLaClasse === 'italien') {
-                    if (estItalien) scoreIncompatibilite -= 1500;  
-                    if (estEspagnol) scoreIncompatibilite += 8000; 
+                    if (estItalien) scoreIncompatibilite -= 1500;
+                    else if (estEspagnol) scoreIncompatibilite += 8000;
+                    else {
+                        // élève "neutre" (sans LV2 ita/esp) : on le décourage d'aller dans une
+                        // classe pure, mais cette pénalité s'efface progressivement à mesure
+                        // que la classe accuse un vrai retard de remplissage par rapport aux
+                        // autres classes déjà traitées (cas où trop peu d'élèves ont la LV2).
+                        const retardRemplissage = Math.max(0, tailleCibleMoyenne - classe.length);
+                        scoreIncompatibilite += Math.max(0, 300 - retardRemplissage * 40);
+                    }
                 } 
                 else if (typeDeLaClasse === 'espagnol') {
                     if (estEspagnol) scoreIncompatibilite -= 1500; 
-                    if (estItalien) scoreIncompatibilite += 8000;  
+                    else if (estItalien) scoreIncompatibilite += 8000;
+                    else {
+                        const retardRemplissage = Math.max(0, tailleCibleMoyenne - classe.length);
+                        scoreIncompatibilite += Math.max(0, 300 - retardRemplissage * 40);
+                    }
                 } 
                 else if (typeDeLaClasse === 'mixte') {
                     if (estItalien || estEspagnol) {
