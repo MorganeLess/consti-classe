@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Flag, Music, Scale, Upload, Download, FileDown, Accessibility, GripVertical } from 'lucide-react';
 
+const API_URL = "https://consti-classe-backend.onrender.com";
+
 // ---------------------------------------------------------------------------
 // Design tokens — "classeur de salle des profs"
 // ---------------------------------------------------------------------------
@@ -47,7 +49,7 @@ function App() {
     files.forEach((file) => formData.append('files', file));
 
     try {
-      const response = await fetch('http://localhost:5050/api/import', { method: 'POST', body: formData });
+      const response = await fetch(`${API_URL}/api/import`, { method: 'POST', body: formData });
       const data = await response.json();
       if (response.ok) {
         setMessage(`${data.message} ${data.donnees ? data.donnees.length : 0} élèves chargés.`);
@@ -79,7 +81,7 @@ function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:5050/api/generer-classes', {
+      const response = await fetch(`${API_URL}/api/generer-classes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -105,7 +107,7 @@ function App() {
 
   const handleExportGlobal = async () => {
     try {
-      const response = await fetch('http://localhost:5050/api/export', {
+      const response = await fetch(`${API_URL}/api/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ classes: classesGenerees })
@@ -118,7 +120,7 @@ function App() {
 
   const handleExportClasseUnique = async (nomClasse, listeElevesClasse) => {
     try {
-      const response = await fetch('http://localhost:5050/api/export-classe-specifique', {
+      const response = await fetch(`${API_URL}/api/export-classe-specifique`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nomClasse, listeElevesClasse })
